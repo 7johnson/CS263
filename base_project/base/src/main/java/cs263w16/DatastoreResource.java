@@ -3,8 +3,30 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+
+import javax.servlet.http.HttpServletResponse;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.FormParam;
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
+import javax.ws.rs.Produces;
+import javax.ws.rs.core.Context;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Request;
+import javax.ws.rs.core.UriInfo;
+import javax.servlet.*;
 import javax.servlet.http.*;
-import javax.ws.rs.*;
+import java.io.*;
+import java.util.*;
+import java.util.logging.*;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+
+import com.google.appengine.api.datastore.*;
+import com.google.appengine.api.datastore.Query.*;
+import com.google.appengine.api.datastore.Query.Filter;
 import com.google.appengine.api.datastore.DatastoreService;
 import com.google.appengine.api.datastore.DatastoreServiceFactory;
 import com.google.appengine.api.datastore.Entity;
@@ -12,6 +34,7 @@ import com.google.appengine.api.datastore.FetchOptions;
 import com.google.appengine.api.datastore.Query;
 import com.google.appengine.api.memcache.MemcacheService;
 import com.google.appengine.api.memcache.MemcacheServiceFactory;
+import com.google.appengine.api.memcache.*;
 
 //Map this class to /ds route
 @Path("/ds")
@@ -59,7 +82,8 @@ public class DatastoreResource {
   public void newTaskData(@FormParam("keyname") String keyname,
       @FormParam("value") String value,
       @Context HttpServletResponse servletResponse) throws IOException {
-    Date date = new Date();
+    
+	Date date = new Date();
     Entity ent = new Entity("TaskData",keyname);
     ent.setProperty("value", value);
     ent.setProperty("date",date);

@@ -1,8 +1,21 @@
 package cs263w16;
+
 import java.util.Date;
 import java.util.List;
+
 import javax.management.RuntimeErrorException;
-import javax.ws.rs.*;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.DELETE;
+import javax.ws.rs.FormParam;
+import javax.ws.rs.GET;
+import javax.ws.rs.PUT;
+import javax.ws.rs.Produces;
+import javax.ws.rs.core.Context;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Request;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.UriInfo;
+
 import com.google.appengine.api.datastore.DatastoreService;
 import com.google.appengine.api.datastore.DatastoreServiceFactory;
 import com.google.appengine.api.datastore.Entity;
@@ -14,6 +27,10 @@ import com.google.appengine.api.datastore.Query;
 import com.google.appengine.api.datastore.Query.Filter;
 import com.google.appengine.api.datastore.Query.FilterOperator;
 import com.google.appengine.api.datastore.Query.FilterPredicate;
+
+import com.google.appengine.api.memcache.*;
+
+
 
 public class TaskDataResource {
     @Context
@@ -39,6 +56,8 @@ public class TaskDataResource {
         // add your code here (get Entity from datastore using this.keyname)
         // throw new RuntimeException("Get: TaskData with " + keyname + " not found");
         // if not found
+		
+	  
         try {
 			Entity ent;
 			if(syncCache.get(keyname)!=null) {
@@ -73,40 +92,46 @@ public class TaskDataResource {
     @PUT
     @Consumes(MediaType.APPLICATION_XML)
     public Response putTaskData(String val) {
-      
+	
+		Response response;
+        
 		Key entKey = KeyFactory.createKey("TaskData", keyname);
         Filter keyFilter = new FilterPredicate(Entity.KEY_RESERVED_PROPERTY, FilterOperator.EQUAL, entKey);
         Query query = new Query().setFilter(keyFilter);
         List<Entity> results = datastore.prepare(query).asList(FetchOptions.Builder.withDefaults());
-        
-		Response res = null;
-        
-		if(results.isEmpty()){
-            Entity ent = new Entity(KeyFactory.createKey("TaskData", keyname));
+	   
+		if(results.size()==0){
+            
+			Entity ent = new Entity("TaskData",keyname);
             ent.setProperty("value", val);
             ent.setProperty("date", new Date());
-            datastore.put(ent);
             
-			res = Response.created(uriInfo.getAbsolutePath()).build();
+			datastore.put(ent);
+            syncCache.put(keyname, ent);
+			
+			response = Response.created(uriInfo.getAbsolutePath()).build();
         }
         else
 		{
             Entity ent = results.get(0);
             ent.setProperty("value", val);
             ent.setProperty("date", new Date());
-            datastore.put(ent);
             
-			res = Response.noContent().build();
+			datastore.put(ent);
+            syncCache.put(keyname,ent);
+			
+			response = Response.noContent().build();
         }
        
-        return res;
+        return response;
     }
 
     @DELETE
     public void deleteIt() {
-        try{
+    	
+		try{
 			if(syncCache.get(keyname)!=null) {
-				synCache.delete(keyname);				
+				syncCache.delete(keyname);				
 			}
         datastore.delete(KeyFactory.createKey("TaskData", keyname));
         }catch(IllegalArgumentException e){
