@@ -25,6 +25,9 @@ public class DatastoreServlet extends HttpServlet {
       //resp.getWriter().println("<h2>Hello World</h2>"); //remove this line
 
 	  DatastoreService datastore = DatastoreServiceFactory.getDatastoreService();
+	  MemcacheService syncCache = MemcacheServiceFactory.getMemcacheService();
+	  
+	  syncCache.setErrorHandler(ErrorHandlers.getConsistentLogAndContinue(Level.INFO));
 	  
 	  String keyName=req.getParameter("keyname");
 	  String value=req.getParameter("value");
@@ -35,39 +38,75 @@ public class DatastoreServlet extends HttpServlet {
 		  
 		  List<Entity> results = datastore.prepare(taskDataQuery)
                                 .asList(FetchOptions.Builder.withDefaults());
+		  Map<String,Integer> map=new HashMap<String,Integer>();
 		  
+		  resp.getWriter().println("<h1>Datastore Data: </h1>");
 		  int count=0;
 		  
 		  for(Entity result: results)
 		  {
 			  count++;
-			  resp.getWriter().println("<h2>"+count+" "+"key:"
-			  +result.getKey().getName()+" "+"value:"+result.getProperty("value")
-			  +" "+"created at "+result.getProperty("date")+"</h2>");
+			  resp.getWriter().println("<h2>"+count+". "+"key:"
+			  +result.getKey().getName()+","+"value:"+result.getProperty("value")
+			  +","+"created at "+result.getProperty("date")+"</h2>");
+			  
+			  if(!map.containsKey(result.getKey().getName()))
+				  map.put(result.getKey().getName(),0);
 		  }
 		  
+		  
+		  resp.getWriter().println("<h1></h1>");
+		  resp.getWriter().println("<h1>MemCache Data: </h1>");
+		  
+		  count=0;
+		  for(String s:map.keySet())
+		  {
+			  if(syncCache.get(s)!=null)
+			  {
+				  count++;
+				  Entity memResult=(Entity)syncCache.get(s);
+				  resp.getWriter().println("<h2>"+count+". "+" "+"key:"
+				  +memResult.getKey().getName()+","+"value:"+memResult.getProperty("value")
+				  +","+"created at "+memResult.getProperty("date")+"</h2>");
+			  }
+		  }
 	  }
 	  else if(keyName!=null && value==null)
 	  {
+		  boolean notInMem=false;
+		  
+		  if(syncCache.get(keyName)==null) notInMem=true;
+		  
 		  Key entKey=KeyFactory.createKey("TaskData", keyName);
 		  
 		  Filter keyFilter = new FilterPredicate(Entity.KEY_RESERVED_PROPERTY, FilterOperator.EQUAL, entKey);
-          Query q = new Query("TaskData").setFilter(keyFilter);
-          List<Entity> results = datastore.prepare(q).asList(FetchOptions.Builder.withDefaults());
-		  
+          Query keyBasedQuery = new Query("TaskData").setFilter(keyFilter);
+          List<Entity> results = datastore.prepare(keyBasedQuery).asList(FetchOptions.Builder.withDefaults());
+		 
 		  if (results.isEmpty()) {
-              resp.getWriter().println("<h2>Nothing added!</h2>"); 
+			  
+			  if(!notInMem)  
+			  {
+				  datastore.put((Entity)syncCache.get(keyName));
+				  resp.getWriter().println("<h2>Memory only!</h2>");
+			  }				  
+		      else resp.getWriter().println("<h2>Neither!</h2>"); 
           }
 		  else
 		  {
-			    int count=0;
-				for(Entity result: results)
-				{
-					count++;
+			    if(notInMem) resp.getWriter().println("<h2>Datastore Only!</h2>");
+				else resp.getWriter().println("<h2>Both!</h2>");				
+            
+			  
+		        resp.getWriter().println("<h1>Selected Data: </h1>");
+		  
+			    for(Entity result: results)
+				{		
+					if(notInMem) syncCache.put(keyName,result);
 					
-					resp.getWriter().println("<h2>"+count+" "+"key:"
-					+result.getKey().getName()+" "+"value:"+result.getProperty("value")
-					+" "+"created at "+result.getProperty("date")+"</h2>");
+					resp.getWriter().println("<h2>"+"key:"
+					+result.getKey().getName()+","+"value:"+result.getProperty("value")
+					+","+"created at "+result.getProperty("date")+"</h2>");
 				}
 			  
 		  }
@@ -80,13 +119,16 @@ public class DatastoreServlet extends HttpServlet {
 		  Date createdDate = new Date();
 		  ent.setProperty("date",createdDate);
 		  
+		  syncCache.put(ent.getKey().getName(), ent);
 		  datastore.put(ent);
 		  
-		  resp.getWriter().println("<h2>Store"+keyName+"and"+value+"in Datastore</h2>");
+		  resp.getWriter().println("<h2>Stored "+keyName+" and "+value+" in Datastore!</h2>");
+		  resp.getWriter().println("<h2>Stored "+keyName+" and "+value+" in MemCache!</h2>");
+
 	  }
 	  else
 	  {
-		  resp.getWriter().println("<h2>Wrong Format Input! Check again!</h2>");
+		  resp.getWriter().println("<h2>Wrong Format Input!Check again!</h2>");
 	  }
 	  
       resp.getWriter().println("</body></html>");
