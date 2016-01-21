@@ -3,20 +3,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-
-import javax.servlet.http.HttpServletResponse;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.FormParam;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Request;
-import javax.ws.rs.core.UriInfo;
-
+import javax.servlet.http.*;
+import javax.ws.rs.*;
 import com.google.appengine.api.datastore.DatastoreService;
 import com.google.appengine.api.datastore.DatastoreServiceFactory;
 import com.google.appengine.api.datastore.Entity;
@@ -45,10 +33,12 @@ public class DatastoreResource {
   public List<TaskData> getEntitiesBrowser() {
     //datastore dump -- only do this if there are a small # of entities
     List<TaskData> list = new ArrayList<TaskData>();
-    Query allQuery = new Query("TaskData");
-    List<Entity> results = datastore.prepare(allQuery).asList(FetchOptions.Builder.withDefaults());
-    for(Entity e:results){
-            list.add(new TaskData(e.getKey().getName(),(String)(e.getProperty("value")),(Date)e.getProperty("date")));
+    Query taskDataQuery = new Query("TaskData");
+    List<Entity> results = datastore.prepare(taskDataQuery).asList(FetchOptions.Builder.withDefaults());
+    for(Entity ent:results){
+            list.add(new TaskData(ent.getKey().getName(),
+			(String)(ent.getProperty("value")),
+			(Date)ent.getProperty("date")));
     }
     return list;
   }
@@ -70,12 +60,12 @@ public class DatastoreResource {
       @FormParam("value") String value,
       @Context HttpServletResponse servletResponse) throws IOException {
     Date date = new Date();
-    Entity taskData = new Entity("TaskData",keyname);
-    taskData.setProperty("value", value);
-    taskData.setProperty("date",date);
+    Entity ent = new Entity("TaskData",keyname);
+    ent.setProperty("value", value);
+    ent.setProperty("date",date);
     
-    datastore.put(taskData);
-    syncCache.put(taskData.getKey().getName(), taskData);
+    datastore.put(ent);
+    syncCache.put(keyname, ent);
     
     System.out.println("Posting new TaskData: " +keyname+" val: "+value+" ts: "+ date );
   }

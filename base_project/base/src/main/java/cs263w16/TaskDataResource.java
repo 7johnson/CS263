@@ -1,21 +1,8 @@
 package cs263w16;
-
 import java.util.Date;
 import java.util.List;
-
 import javax.management.RuntimeErrorException;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.DELETE;
-import javax.ws.rs.FormParam;
-import javax.ws.rs.GET;
-import javax.ws.rs.PUT;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Request;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.UriInfo;
-
+import javax.ws.rs.*;
 import com.google.appengine.api.datastore.DatastoreService;
 import com.google.appengine.api.datastore.DatastoreServiceFactory;
 import com.google.appengine.api.datastore.Entity;
@@ -36,6 +23,8 @@ public class TaskDataResource {
     String keyname;
 
     DatastoreService datastore = DatastoreServiceFactory.getDatastoreService();
+	MemcacheService syncCache = MemcacheServiceFactory.getMemcacheService();
+
 
     public TaskDataResource(UriInfo uriInfo, Request request, String kname) {
         this.uriInfo = uriInfo;
@@ -51,10 +40,24 @@ public class TaskDataResource {
         // throw new RuntimeException("Get: TaskData with " + keyname + " not found");
         // if not found
         try {
-            Entity e = datastore.get(KeyFactory.createKey("TaskData", this.keyname));
-            return new TaskData(e.getKey().getName(), (String)e.getProperty("value"), (Date)e.getProperty("date"));
+			Entity ent;
+			if(syncCache.get(keyname)!=null) {
+				
+				ent=(Entity)syncCache.get(keyname);
+				return new TaskData(keyname, 
+				(String)ent.getProperty("value"), 
+				(Date)ent.getProperty("date"));
+        
+			}
+            ent = datastore.get(KeyFactory.createKey("TaskData", keyname));
+            return new TaskData(keyname, 
+			(String)ent.getProperty("value"), 
+			(Date)ent.getProperty("date"));
+			
         } catch (EntityNotFoundException e) {
-            throw new RuntimeException("Get Taskdata with: " + this.keyname + " not found");
+            throw new RuntimeException("Get Taskdata with: " + 
+			this.keyname + 
+			" not found");
         }
 
     }
@@ -70,43 +73,44 @@ public class TaskDataResource {
     @PUT
     @Consumes(MediaType.APPLICATION_XML)
     public Response putTaskData(String val) {
-        Response res = null;
-        // add your code here
-        // first check if the Entity exists in the datastore
-        // if it is not, create it and
-        // signal that we created the entity in the datastore
-        Key key = KeyFactory.createKey("TaskData", this.keyname);
-        Filter keyFilter = new FilterPredicate(Entity.KEY_RESERVED_PROPERTY, FilterOperator.EQUAL, key);
-        Query q = new Query().setFilter(keyFilter);
-        List<Entity> results = datastore.prepare(q).asList(FetchOptions.Builder.withDefaults());
-        //Create it
-        if(results.size() == 0){
-            Entity e = new Entity(KeyFactory.createKey("TaskData", this.keyname));
-            e.setProperty("value", val);
-            e.setProperty("date", new Date());
-            datastore.put(e);
-            res = Response.created(uriInfo.getAbsolutePath()).build();
+      
+		Key entKey = KeyFactory.createKey("TaskData", keyname);
+        Filter keyFilter = new FilterPredicate(Entity.KEY_RESERVED_PROPERTY, FilterOperator.EQUAL, entKey);
+        Query query = new Query().setFilter(keyFilter);
+        List<Entity> results = datastore.prepare(query).asList(FetchOptions.Builder.withDefaults());
+        
+		Response res = null;
+        
+		if(results.isEmpty()){
+            Entity ent = new Entity(KeyFactory.createKey("TaskData", keyname));
+            ent.setProperty("value", val);
+            ent.setProperty("date", new Date());
+            datastore.put(ent);
+            
+			res = Response.created(uriInfo.getAbsolutePath()).build();
         }
-        //Update it
-        else{
-            Entity e = results.get(0);
-            e.setProperty("value", val);
-            e.setProperty("date", new Date());
-            datastore.put(e);
-            res = Response.noContent().build();
+        else
+		{
+            Entity ent = results.get(0);
+            ent.setProperty("value", val);
+            ent.setProperty("date", new Date());
+            datastore.put(ent);
+            
+			res = Response.noContent().build();
         }
        
-        // else signal that we updated the entity
-        
         return res;
     }
 
     @DELETE
     public void deleteIt() {
         try{
-        datastore.delete(KeyFactory.createKey("TaskData", this.keyname));
+			if(syncCache.get(keyname)!=null) {
+				synCache.delete(keyname);				
+			}
+        datastore.delete(KeyFactory.createKey("TaskData", keyname));
         }catch(IllegalArgumentException e){
-           throw new RuntimeException("No such key");
+           throw new RuntimeException("The key not exists!");
         }
         // delete an entity from the datastore
         // just print a message upon exception (don't throw)
