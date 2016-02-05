@@ -13,20 +13,23 @@ import com.google.appengine.api.blobstore.BlobKey;
 import com.google.appengine.api.blobstore.BlobstoreService;
 import com.google.appengine.api.blobstore.BlobstoreServiceFactory;
 
-public class Upload extends HttpServlet {
+public class UploadServlet extends HttpServlet {
     private BlobstoreService blobstoreService = BlobstoreServiceFactory.getBlobstoreService();
 
     @Override
     public void doPost(HttpServletRequest req, HttpServletResponse res)
         throws ServletException, IOException {
 
+    	BlobKey blobKey=new BlobKey(req.getParameter("blob-key"));
+    	
         Map<String, List<BlobKey>> blobs = blobstoreService.getUploads(req);
         List<BlobKey> blobKeys = blobs.get("myFile");
-
         if (blobKeys == null || blobKeys.isEmpty()) {
             res.sendRedirect("/");
         } else {
-            res.sendRedirect("/serve?blob-key=" + blobKeys.get(0).getKeyString());
+        	res.getWriter().println(blobKey.getKeyString());
+            //res.sendRedirect("/serve?blob-key=" + blobKeys.get(0).getKeyString());
         }
     }
+       
 }

@@ -45,12 +45,12 @@
 
 <servlet>
     <servlet-name>Upload</servlet-name>
-    <servlet-class>Upload</servlet-class>
+    <servlet-class>cs263w16.UploadServlet</servlet-class>
   </servlet>
   
   <servlet>
     <servlet-name>Serve</servlet-name>
-    <servlet-class>Serve</servlet-class>
+    <servlet-class>cs263w16.ServeServlet</servlet-class>
   </servlet>
  
   <servlet-mapping>
