@@ -52,6 +52,11 @@
     <servlet-name>Serve</servlet-name>
     <servlet-class>cs263w16.ServeServlet</servlet-class>
   </servlet>
+  
+  <servlet>
+    <servlet-name>Login</servlet-name>
+    <servlet-class>cs263w16.LoginServlet</servlet-class>
+  </servlet>
  
   <servlet-mapping>
     <servlet-name>Upload</servlet-name>
@@ -62,5 +67,11 @@
     <servlet-name>Serve</servlet-name>
     <url-pattern>/serve</url-pattern>
   </servlet-mapping>
+  
+  <servlet-mapping>
+    <servlet-name>Login</servlet-name>
+    <url-pattern>/login</url-pattern>
+  </servlet-mapping>
+  
  
 </web-app>

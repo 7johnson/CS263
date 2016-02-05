@@ -22,5 +22,12 @@
 			<attribute name="maven.pomderived" value="true"/>
 		</attributes>
 	</classpathentry>
+	<classpathentry kind="lib" path="G:/twitter4j-4.0.4/twitter4j-core/twitter4j-core-4.0.4-javadoc.jar"/>
+	<classpathentry kind="lib" path="G:/twitter4j-4.0.4/lib/twitter4j-async-4.0.4.jar"/>
+	<classpathentry kind="lib" path="G:/twitter4j-4.0.4/lib/twitter4j-core-4.0.4.jar"/>
+	<classpathentry kind="lib" path="G:/twitter4j-4.0.4/lib/twitter4j-examples-4.0.4.jar"/>
+	<classpathentry kind="lib" path="G:/twitter4j-4.0.4/lib/twitter4j-media-support-4.0.4.jar"/>
+	<classpathentry kind="lib" path="G:/twitter4j-4.0.4/lib/twitter4j-stream-4.0.4.jar"/>
+	<classpathentry kind="lib" path="twitter4j-4.0.4.zip"/>
 	<classpathentry kind="output" path="target/base-1.0-SNAPSHOT/WEB-INF/classes"/>
 </classpath>
