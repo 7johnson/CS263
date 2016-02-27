@@ -14,6 +14,7 @@
 	</section>
 	<section name="MavenProjectImportWizardPage">
 		<list key="rootDirectory">
+			<item value="G:\mvnProject"/>
 			<item value="G:\CS263"/>
 		</list>
 		<list key="projectNameTemplate">
