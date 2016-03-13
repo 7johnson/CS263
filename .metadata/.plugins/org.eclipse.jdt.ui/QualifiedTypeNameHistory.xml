@@ -2,13 +2,25 @@
 <qualifiedTypeNameHistroy>
 <fullyQualifiedTypeName name="javax.servlet.ServletException"/>
 <fullyQualifiedTypeName name="java.io.IOException"/>
-<fullyQualifiedTypeName name="javax.servlet.http.HttpServletRequest"/>
-<fullyQualifiedTypeName name="javax.servlet.http.HttpServletResponse"/>
 <fullyQualifiedTypeName name="twitter4j.TwitterFactory"/>
 <fullyQualifiedTypeName name="twitter4j.Twitter"/>
 <fullyQualifiedTypeName name="twitter4j.auth.RequestToken"/>
 <fullyQualifiedTypeName name="javax.servlet.http.HttpSession"/>
-<fullyQualifiedTypeName name="javax.servlet.http.HttpServlet"/>
 <fullyQualifiedTypeName name="javax.servlet.RequestDispatcher"/>
 <fullyQualifiedTypeName name="twitter4j.TwitterException"/>
+<fullyQualifiedTypeName name="javax.servlet.http.HttpServlet"/>
+<fullyQualifiedTypeName name="javax.servlet.http.HttpServletRequest"/>
+<fullyQualifiedTypeName name="javax.servlet.http.HttpServletResponse"/>
+<fullyQualifiedTypeName name="com.google.appengine.api.users.UserService"/>
+<fullyQualifiedTypeName name="com.google.apphosting.api.UserServicePb.UserService"/>
+<fullyQualifiedTypeName name="com.google.appengine.api.users.UserServiceFactory"/>
+<fullyQualifiedTypeName name="com.google.appengine.api.users.User"/>
+<fullyQualifiedTypeName name="com.google.appengine.api.datastore.Key"/>
+<fullyQualifiedTypeName name="cs263w16.DatastoreCheck"/>
+<fullyQualifiedTypeName name="com.google.appengine.api.datastore.KeyFactory"/>
+<fullyQualifiedTypeName name="java.awt.List"/>
+<fullyQualifiedTypeName name="java.util.List"/>
+<fullyQualifiedTypeName name="java.lang.String"/>
+<fullyQualifiedTypeName name="java.util.ArrayList"/>
+<fullyQualifiedTypeName name="cs263w16.User"/>
 </qualifiedTypeNameHistroy>
