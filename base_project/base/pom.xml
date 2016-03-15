@@ -29,11 +29,7 @@
  
  <dependencyManagement>
   <dependencies>
-<dependency>
-           <groupId>org.twitter4j</groupId>
-           <artifactId>twitter4j-core</artifactId>
-           <version>[4.0,)</version>
-       </dependency>
+
 	   
 <dependency>
     <groupId>org.glassfish.jersey</groupId>
@@ -51,6 +47,13 @@
 
     <dependencies>
         <!-- Compile/runtime dependencies -->
+        
+          <dependency>
+    <groupId>com.google.appengine.tools</groupId>
+    <artifactId>appengine-gcs-client</artifactId>
+    <version>RELEASE</version>
+</dependency>
+        
         <dependency>
             <groupId>com.google.appengine</groupId>
             <artifactId>appengine-api-1.0-sdk</artifactId>
@@ -69,6 +72,8 @@
         </dependency>
 		
 		<!-- My Dependencies -->
+	
+		
  <dependency>
   <groupId>org.glassfish.jersey.containers </groupId>
   <artifactId>jersey-container-servlet-core</artifactId>

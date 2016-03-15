@@ -1,0 +1,200 @@
+package cs263w16;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.net.URL;
+import java.nio.ByteBuffer;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import com.google.appengine.tools.cloudstorage.GcsFileOptions;
+import com.google.appengine.tools.cloudstorage.GcsFilename;
+import com.google.appengine.tools.cloudstorage.GcsInputChannel;
+import com.google.appengine.tools.cloudstorage.GcsOutputChannel;
+import com.google.appengine.tools.cloudstorage.GcsService;
+import com.google.appengine.tools.cloudstorage.GcsServiceFactory;
+import com.google.appengine.tools.cloudstorage.RetryParams;
+//import com.google.appengine.tools.development.testing.LocalBlobstoreServiceTestConfig;
+//import com.google.appengine.tools.development.testing.LocalDatastoreServiceTestConfig;
+//import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
+
+import com.google.appengine.api.blobstore.BlobInfoFactory;
+import com.google.appengine.api.blobstore.BlobKey;
+import com.google.appengine.api.blobstore.BlobstoreService;
+import com.google.appengine.api.blobstore.BlobstoreServiceFactory;
+import com.google.appengine.api.datastore.Blob;
+import com.google.appengine.api.datastore.DatastoreService;
+import com.google.appengine.api.datastore.DatastoreServiceFactory;
+import com.google.appengine.api.datastore.Entity;
+import com.google.appengine.api.datastore.Key;
+import com.google.appengine.api.datastore.KeyFactory;
+
+import org.apache.commons.fileupload.FileItemIterator;
+import org.apache.commons.fileupload.FileItemStream;
+import org.apache.commons.fileupload.servlet.ServletFileUpload;
+
+import com.google.appengine.api.images.Image;
+import com.google.appengine.api.images.ImagesService;
+import com.google.appengine.api.images.ImagesServiceFactory;
+import com.google.appengine.api.images.Transform;
+import com.google.appengine.api.memcache.ErrorHandlers;
+import com.google.appengine.api.memcache.MemcacheService;
+import com.google.appengine.api.memcache.MemcacheServiceFactory;
+
+import com.google.appengine.api.users.User;
+import com.google.appengine.api.users.UserService;
+import com.google.appengine.api.users.UserServiceFactory;
+
+
+@SuppressWarnings("serial")
+public class UpdateServlet extends HttpServlet{
+	
+	private static final Logger log = Logger.getLogger(UploadServlet.class.getName());
+	private static final String BUCKET_NAME = "binhanxu007";
+	private UserService userService=UserServiceFactory.getUserService();
+	private DatastoreService datastore=DatastoreServiceFactory.getDatastoreService();
+	private MemcacheService syncCache=MemcacheServiceFactory.getMemcacheService();
+	private BlobstoreService blobstoreService=BlobstoreServiceFactory.getBlobstoreService();
+	private ImagesService imagesService=ImagesServiceFactory.getImagesService();
+    private final GcsService gcsService = GcsServiceFactory.createGcsService(new RetryParams.Builder()
+    .initialRetryDelayMillis(10)
+    .retryMaxAttempts(10)
+    .totalRetryPeriodMillis(15000)
+    .build());
+
+    /**Used below to determine the size of chucks to read in. Should be > 1kb and < 10MB */
+    private static final int BUFFER_SIZE = 2 * 1024 * 1024;
+
+
+
+	public void doPost(HttpServletRequest req,HttpServletResponse resp) throws IOException
+	{
+		syncCache.setErrorHandler(ErrorHandlers.getConsistentLogAndContinue(Level.INFO));
+		
+		if(userService.getCurrentUser()==null)
+		{
+			resp.sendRedirect("/login");
+		}
+		else
+		{
+			User curUser=userService.getCurrentUser();	
+			Key userKey=KeyFactory.createKey("User", curUser.getUserId());
+			
+			Entity user=new Entity("User",curUser.getUserId());
+			datastore.put(user);
+			syncCache.put(curUser.getUserId(), user);
+			
+			
+	        Map<String, List<BlobKey>> blobs = blobstoreService.getUploads(req);
+	        List<BlobKey> blobKeys = blobs.get("myFile");
+	        
+	        if (blobKeys == null || blobKeys.isEmpty()) {
+	            resp.sendRedirect("/");
+	        }
+	        else
+	        {
+	        	
+	            Image myImage = ImagesServiceFactory.makeImageFromBlob(blobKeys.get(0));
+	            
+	            Transform resize=ImagesServiceFactory.makeResize(200, 100);
+	            Image newImage=imagesService.applyTransform(resize, myImage);
+	            
+	            byte[] newImageData = newImage.getImageData();
+	            
+	            BlobKey newBlobKey=saveToBlobstore("myImage", newImageData);
+	            
+	            resp.getWriter().println(newBlobKey.getKeyString());
+	            
+	            resp.sendRedirect("/serve?blob-key="+newBlobKey.getKeyString());
+	            
+	            //sendToBlobStore(id, cmd, imageBytes);
+	            
+	            
+//	            String photoURL="/serve?blob-key=" + newImage.getBlobKey().toString();
+//	        	
+//	            Entity photo = new Entity("Photo", userKey);
+//	        	
+//	            photo.setProperty("imageURL",photoURL);
+//	        	photo.setProperty("Date", new Date());
+//	            photo.setProperty("imgWidth", newImage.getWidth());
+//	            photo.setProperty("imgHeight", newImage.getHeight());          
+//	            photo.setProperty("blobKey", newImage.getBlobKey().toString());
+//	            
+//	        	datastore.put(photo);
+	        }
+//	        
+//	        //resp.sendRedirect("/user");
+		}
+	}
+	
+	private BlobKey saveToBlobstore(String imageName, byte[] imageData) throws IOException {
+	
+		        String sctype = null, sfieldname, sname = null;
+		        ServletFileUpload upload;
+		        FileItemIterator iterator;
+		        FileItemStream item;
+		        InputStream stream = null;
+		        try {
+		            upload = new ServletFileUpload();
+		            res.setContentType("text/plain");
+
+		            iterator = upload.getItemIterator(req);
+		            while (iterator.hasNext()) {
+		                item = iterator.next();
+		                stream = item.openStream();
+
+		                if (item.isFormField()) {
+		                    log.warning("Got a form field: " + item.getFieldName());
+		                } else {
+		                    log.warning("Got an uploaded file: " + item.getFieldName() +
+		                            ", name = " + item.getName());
+
+		                    sfieldname = item.getFieldName();
+		                    sname = item.getName();
+
+		                    sctype = item.getContentType();
+
+		                    GcsFilename gcsfileName = new GcsFilename(bucketName, sname);
+
+		                    GcsFileOptions options = new GcsFileOptions.Builder()
+		                    .acl("public-read").mimeType(sctype).build();
+
+		                    GcsOutputChannel outputChannel =
+		                            gcsService.createOrReplace(gcsfileName, options);
+
+		                    copy(stream, Channels.newOutputStream(outputChannel));
+
+		                    res.sendRedirect("/");
+		                }
+		            }
+		        } catch (Exception ex) {
+		            throw new ServletException(ex);
+		        }
+		    }
+
+		    private void copy(InputStream input, OutputStream output) throws IOException {
+		        try {
+		          byte[] buffer = new byte[BUFFER_SIZE];
+		          int bytesRead = input.read(buffer);
+		          while (bytesRead != -1) {
+		            output.write(buffer, 0, bytesRead);
+		            bytesRead = input.read(buffer);
+		          }
+		        } finally {
+		          input.close();
+		          output.close();
+		        }
+		      }
+			
+	}
+
+}

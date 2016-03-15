@@ -1,0 +1,60 @@
+package cs263w16;
+
+import java.io.IOException;
+import java.util.Date;
+import java.util.logging.Level;
+
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import com.google.appengine.api.datastore.DatastoreService;
+import com.google.appengine.api.datastore.DatastoreServiceFactory;
+import com.google.appengine.api.datastore.Entity;
+import com.google.appengine.api.datastore.Key;
+import com.google.appengine.api.datastore.KeyFactory;
+import com.google.appengine.api.memcache.ErrorHandlers;
+import com.google.appengine.api.memcache.MemcacheService;
+import com.google.appengine.api.memcache.MemcacheServiceFactory;
+import com.google.appengine.api.users.UserService;
+import com.google.appengine.api.users.UserServiceFactory;
+public class TagServlet extends HttpServlet{
+	private static final long serialVersionUID = 1L;
+	private DatastoreService datastore = DatastoreServiceFactory.getDatastoreService();
+    private MemcacheService syncCache = MemcacheServiceFactory.getMemcacheService();
+    private UserService userService=UserServiceFactory.getUserService();
+	
+    public void doGet(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+    	
+    	if(userService.getCurrentUser()==null) {response.sendRedirect("/login");}
+    	else
+    	{
+    	 String tag = request.getParameter("tag");
+         String imgKeyName = request.getParameter("img-key");	  
+         
+         if(tag==null || imgKeyName==null) return;
+         
+         Key imgKey=KeyFactory.stringToKey(imgKeyName);
+         
+         syncCache.setErrorHandler(ErrorHandlers.getConsistentLogAndContinue(Level.INFO));
+	  
+		
+		// Do something with key.
+		Entity ent=new Entity("Tag",imgKey);
+		Entity tagEntity=new Entity(tag);
+		
+		ent.setProperty("tag",content);
+		Date createdDate = new Date();
+		ent.setProperty("date",createdDate);
+		  
+		syncCache.put(ent.getKey().getName(), ent);
+		datastore.put(ent);
+		
+        response.sendRedirect("/image?img-key="+imgKeyName);
+
+    	}
+    }
+
+}

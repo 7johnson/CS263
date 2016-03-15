@@ -1,10 +1,9 @@
 <queue-entries>
- <queue>
-  <name>default</name>
-  <rate>1/s</rate>
-  <retry-parameters>
-   <task-retry-limit>1</task-retry-limit>
-   <task-age-limit>1s</task-age-limit>
-  </retry-parameters>
- </queue>
+<!--Set the number of max concurrent requests to 10-->
+  <queue>
+    <name>optimize-queue</name>
+    <rate>20/s</rate>
+    <bucket-size>40</bucket-size>
+    <max-concurrent-requests>10</max-concurrent-requests>
+  </queue>
 </queue-entries>

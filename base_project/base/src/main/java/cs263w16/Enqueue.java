@@ -14,19 +14,30 @@ import com.google.appengine.api.taskqueue.TaskOptions.Method;
 
 
 public class Enqueue extends HttpServlet {
-    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+    /**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
+	
+	protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        String keyName = request.getParameter("keyname");
-		String value = request.getParameter("value");
+        String content = request.getParameter("content");
+        String tag = request.getParameter("tag");
+        String imgKey = request.getParameter("img-key");
 
-
+        response.getWriter().println(content);
+        response.getWriter().println(imgKey);
+        
         // Add the task to the default queue.
+        if(content!=null){
         Queue queue = QueueFactory.getDefaultQueue();
-        queue.add(TaskOptions.Builder.withUrl("/rest/ds")
-		.param("keyname", keyName)
-		.param("value", value)
-		.method(Method.POST));
-
-        //response.sendRedirect("/done.html");
+        queue.add(TaskOptions.Builder.withUrl("/worker")
+		.param("content", content)
+		.param("img-key", imgKey));
+        }
+        
+        if(content!=null) response.sendRedirect("/comment?content="+content+"&"+"img-key="+imgKey);
+        else if(tag!=null) response.sendRedirect("/tag?tag="+tag+"&"+"img-key="+imgKey);
+        //response.sendRedirect("/image?img-key="+imgKey);
     }
 }

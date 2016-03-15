@@ -1,0 +1,171 @@
+package cs263w16;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.WriteAbortedException;
+import java.net.URL;
+import java.nio.ByteBuffer;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import com.google.appengine.tools.cloudstorage.GcsFileOptions;
+import com.google.appengine.tools.cloudstorage.GcsFilename;
+import com.google.appengine.tools.cloudstorage.GcsInputChannel;
+import com.google.appengine.tools.cloudstorage.GcsOutputChannel;
+import com.google.appengine.tools.cloudstorage.GcsService;
+import com.google.appengine.tools.cloudstorage.GcsServiceFactory;
+import com.google.appengine.tools.cloudstorage.RetryParams;
+
+import com.google.appengine.api.blobstore.BlobInfoFactory;
+import com.google.appengine.api.blobstore.BlobKey;
+import com.google.appengine.api.blobstore.BlobstoreService;
+import com.google.appengine.api.blobstore.BlobstoreServiceFactory;
+import com.google.appengine.api.datastore.Blob;
+import com.google.appengine.api.datastore.DatastoreService;
+import com.google.appengine.api.datastore.DatastoreServiceFactory;
+import com.google.appengine.api.datastore.Entity;
+import com.google.appengine.api.datastore.Key;
+import com.google.appengine.api.datastore.KeyFactory;
+
+import com.google.appengine.api.images.Image;
+import com.google.appengine.api.images.ImagesService;
+import com.google.appengine.api.images.ImagesServiceFactory;
+import com.google.appengine.api.images.Transform;
+import com.google.appengine.api.memcache.ErrorHandlers;
+import com.google.appengine.api.memcache.MemcacheService;
+import com.google.appengine.api.memcache.MemcacheServiceFactory;
+import com.google.appengine.api.urlfetch.FetchOptions;
+import com.google.appengine.api.urlfetch.HTTPHeader;
+import com.google.appengine.api.urlfetch.HTTPMethod;
+import com.google.appengine.api.urlfetch.HTTPRequest;
+import com.google.appengine.api.urlfetch.URLFetchService;
+import com.google.appengine.api.urlfetch.URLFetchServiceFactory;
+import com.google.appengine.api.users.User;
+import com.google.appengine.api.users.UserService;
+import com.google.appengine.api.users.UserServiceFactory;
+import com.google.appengine.api.utils.SystemProperty;
+
+
+@SuppressWarnings("serial")
+public class UploadServlet extends HttpServlet{
+	
+	private UserService userService=UserServiceFactory.getUserService();
+	private DatastoreService datastore=DatastoreServiceFactory.getDatastoreService();
+	private MemcacheService syncCache=MemcacheServiceFactory.getMemcacheService();
+	private BlobstoreService blobstoreService=BlobstoreServiceFactory.getBlobstoreService();
+	private ImagesService imagesService=ImagesServiceFactory.getImagesService();
+
+
+	@Override
+	public void doPost(HttpServletRequest req,HttpServletResponse resp) throws IOException
+	{
+		syncCache.setErrorHandler(ErrorHandlers.getConsistentLogAndContinue(Level.INFO));
+		
+		if(userService.getCurrentUser()==null)
+		{
+			resp.sendRedirect("/login");
+		}
+		else
+		{
+			User curUser=userService.getCurrentUser();	
+			Key userKey=KeyFactory.createKey("User", curUser.getUserId());
+			
+			Entity user=new Entity("User",curUser.getUserId());
+			datastore.put(user);
+			syncCache.put(curUser.getUserId(), user);
+			
+			
+	        Map<String, List<BlobKey>> blobs = blobstoreService.getUploads(req);
+	        List<BlobKey> blobKeys = blobs.get("myFile");
+	        
+	        if (blobKeys == null || blobKeys.isEmpty()) {
+	            resp.sendRedirect("/");
+	        }
+	        else
+	        {
+	        	
+	            Image myImage = ImagesServiceFactory.makeImageFromBlob(blobKeys.get(0));
+	            
+	            Transform flip=ImagesServiceFactory.makeVerticalFlip();
+	            Image newImage=imagesService.applyTransform(flip, myImage);
+	            
+	            byte[] newImageData = newImage.getImageData();
+	            
+	            resp.sendRedirect("/update?img="+newImageData);
+	            
+	            //saveToBlobstore(blobKeys.get(0).getKeyString(), "save", newImageData,resp);          
+	            
+	  		}
+		}
+	}
+	
+	private static final boolean PRODUCTION_MODE = SystemProperty.environment.value() == SystemProperty.Environment.Value.Production;
+    
+	private static final String URL_PREFIX = PRODUCTION_MODE ? "" : "http://127.0.0.1:8888";
+	
+	private void saveToBlobstore(String id, String cmd, byte[] imageData,HttpServletResponse resp) throws IOException {
+		
+		String reqUrl = URL_PREFIX+BlobstoreServiceFactory.getBlobstoreService().createUploadUrl("/update");
+		URLFetchService urlFetchService=URLFetchServiceFactory.getURLFetchService();
+		HTTPRequest req=new HTTPRequest(new URL(reqUrl),HTTPMethod.POST,FetchOptions.Builder.withDeadline(10.0));
+		
+		String boundary=makeBoundary();
+		
+		req.setHeader(new HTTPHeader("Content-Type","multipart/form-data; boundary=" + boundary));
+		
+		ByteArrayOutputStream byteArrayOutputStream=new ByteArrayOutputStream();
+		
+		write(byteArrayOutputStream,"--"+boundary+"\r\n");
+		writeParameter(byteArrayOutputStream,"id",id);
+		write(byteArrayOutputStream,"--"+boundary+"\r\n");
+		writeImage(byteArrayOutputStream,cmd,imageData);
+		write(byteArrayOutputStream,"--"+boundary+"--\r\n");
+		
+		req.setPayload(byteArrayOutputStream.toByteArray());
+			
+		try {
+			urlFetchService.fetch(req);
+			resp.getWriter().println("Right!");
+		} catch (Exception e) {
+			// TODO: handle exception
+			e.printStackTrace();
+			resp.getWriter().println("Wrong!");
+		}
+	}
+	
+	private static Random random = new Random();    
+	 
+	private static String randomString() {
+	    return Long.toString(random.nextLong(), 36);
+	}
+	 
+	private String makeBoundary() {
+	    return "---------------------------" + randomString() + randomString() + randomString();
+	}   
+	
+	private void write(OutputStream os, String s) throws IOException {
+	    os.write(s.getBytes());
+	}
+	 
+	private void writeParameter(OutputStream os, String name, String value) throws IOException {
+	    write(os, "Content-Disposition: form-data; name=\""+name+"\"\r\n\r\n"+value+"\r\n");
+	}
+	 
+	private void writeImage(OutputStream os, String name, byte[] bs) throws IOException {
+	    write(os, "Content-Disposition: form-data; name=\""+name+"\"; filename=\"image.jpg\"\r\n");
+	    write(os, "Content-Type: image/jpeg\r\n\r\n");
+	    os.write(bs);
+	    write(os, "\r\n");
+	}
+
+}

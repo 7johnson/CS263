@@ -16,28 +16,47 @@ import com.google.appengine.api.datastore.Query.*;
 import com.google.appengine.api.datastore.Query.Filter;
 
 import com.google.appengine.api.memcache.*;
+import com.google.appengine.api.taskqueue.Queue;
+import com.google.appengine.api.taskqueue.QueueFactory;
+import com.google.appengine.api.taskqueue.TaskOptions;
+import com.google.appengine.api.taskqueue.TaskOptions.Method;
+import com.google.appengine.api.users.UserService;
+import com.google.appengine.api.users.UserServiceFactory;
 
 public class Worker extends HttpServlet {
+	
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
+	private DatastoreService datastore = DatastoreServiceFactory.getDatastoreService();
+    private MemcacheService syncCache = MemcacheServiceFactory.getMemcacheService();
+    private UserService userService=UserServiceFactory.getUserService();
+	
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        String keyName = request.getParameter("keyname");
-        String value = request.getParameter("value");
-
-		DatastoreService datastore = DatastoreServiceFactory.getDatastoreService();
-	    MemcacheService syncCache = MemcacheServiceFactory.getMemcacheService();
-	  
-	    syncCache.setErrorHandler(ErrorHandlers.getConsistentLogAndContinue(Level.INFO));
+    	
+    	if(userService.getCurrentUser()==null) {response.sendRedirect("/login");}
+    	else
+    	{
+    	 String content = request.getParameter("content");
+         String imgKeyName = request.getParameter("img-key");	  
+         
+         Key imgKey=KeyFactory.stringToKey(imgKeyName);
+         
+         syncCache.setErrorHandler(ErrorHandlers.getConsistentLogAndContinue(Level.INFO));
 	  
 		
 		// Do something with key.
-		Entity ent=new Entity("TaskData",keyName);
+		Entity ent=new Entity("Comment",imgKey);
 		
-		ent.setProperty("value",value);
+		ent.setProperty("author",userService.getCurrentUser().getNickname());
+		ent.setProperty("content",content);
 		Date createdDate = new Date();
 		ent.setProperty("date",createdDate);
 		  
 		syncCache.put(ent.getKey().getName(), ent);
 		datastore.put(ent);
-		
+    	}
     }
 }

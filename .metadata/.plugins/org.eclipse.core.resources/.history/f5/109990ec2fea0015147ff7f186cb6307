@@ -1,0 +1,397 @@
+package cs263w16;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.logging.Level;
+
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import com.google.appengine.api.datastore.DatastoreService;
+import com.google.appengine.api.datastore.DatastoreServiceFactory;
+import com.google.appengine.api.datastore.Entity;
+import com.google.appengine.api.datastore.FetchOptions;
+import com.google.appengine.api.datastore.Key;
+import com.google.appengine.api.datastore.KeyFactory;
+import com.google.appengine.api.memcache.ErrorHandlers;
+import com.google.appengine.api.memcache.MemcacheService;
+import com.google.appengine.api.memcache.MemcacheServiceFactory;
+import com.google.appengine.api.users.User;
+import com.google.appengine.api.users.UserService;
+import com.google.appengine.api.users.UserServiceFactory;
+import com.google.appengine.repackaged.com.google.io.protocol.proto.ProtocolDescriptor.Tag;
+import com.google.appengine.api.datastore.DatastoreServiceFactory;
+import com.google.appengine.api.datastore.DatastoreService;
+import com.google.appengine.api.datastore.Query.Filter;
+import com.google.appengine.api.datastore.Query.FilterPredicate;
+import com.google.appengine.api.images.ImagesServiceFactory;
+import com.google.appengine.api.datastore.Query.FilterOperator;
+import com.google.appengine.api.datastore.Query.CompositeFilter;
+import com.google.appengine.api.datastore.Query.CompositeFilterOperator;
+import com.google.appengine.api.datastore.Query;
+
+@SuppressWarnings("serial")
+public class UserServlet extends HttpServlet{
+	
+	private UserService userService=UserServiceFactory.getUserService();
+	private DatastoreService datastore=DatastoreServiceFactory.getDatastoreService();
+	private MemcacheService syncCache=MemcacheServiceFactory.getMemcacheService();
+	
+	public void doGet(HttpServletRequest req,HttpServletResponse resp) throws IOException
+	{
+		syncCache.setErrorHandler(ErrorHandlers.getConsistentLogAndContinue(Level.INFO));
+
+		if(userService.getCurrentUser()==null)
+		{
+			resp.sendRedirect("/login");
+		}
+		else	
+		{
+			String tag=req.getParameter("tag");
+			
+			resp.setContentType("text/html");
+			resp.getWriter().println("<html>");
+			resp.getWriter().println("<style>");
+			resp.getWriter().println("img {"
+					+ "width:200px;"
+					+ "height:128px;"
+					+ "}"
+					+ ".clear {"
+					+ "clear:both;"
+					+ "}"
+					
+					+ "#grid {"
+					+ "width: 620px;"
+					+ "margin: 40px 130px;"
+					+ "}"
+					
+					+ ".grid-element {"
+					+ "float:left;"
+					+ "padding: 2px;"
+					+  "position:relative;"
+					+ "}"
+
+					+ ".class2 a {"
+					+ "position: absolute;"
+					+ "padding: 3px 6px;"
+					+ "top: 2px;"
+					+ "right: 2px;"
+					+ "z-index: 100;"
+					+ "}"
+					
+					+ "aside {"
+					+ "position: relative;"
+					+ "left: 120px;"
+					+ "top: 100px;"
+					+ "}"
+					
+					+ "footer, h1, h2 {"
+					+ "text-align: center;"
+					+ "}"
+					
+					+ "h1 {"
+					+ "font-family: 'Great Vibes', cursive;"
+					+ "font-size: 60px;"
+					+ "margin: 6px;"
+					+ "}"
+					
+					+ "body {"
+					+ "font-family: 'Lato', sans-serif;"
+					+ "background-color: #B1F2FF;"
+					+ "}"
+					
+					+ "footer {"
+					+ "padding: 10px;"
+					+ "}"
+					
+					+ "div, aside, article {"
+					+ "border: 1px solid red;"
+					+ "}"
+					
+					+".class1 a:link, .class1 a:visited {"
+					+ "background-color: #f44336;"
+					+ "color: white;"
+					+ "padding: 14px 25px;"
+					+ "text-align: center; "
+					+ "text-decoration: none;"
+					+ "display: inline-block;"
+					+ "}"
+					
+					+ ".class1 a:hover, .class1 a:active {"
+					+ "background-color: red;"
+					+ "}"
+					);
+			
+			resp.getWriter().println("</style>");
+			
+			resp.getWriter().println("<head>"
+	    		+ "<meta charset=\"UTF-8\">"
+	    		+ "<title>Photo Gallery Project</title>"
+	    		+ "<link rel=\"stylesheet\" type=\"text/css\" href=\"style.css\">"
+	    		+ "<link href='http://fonts.googleapis.com/css?family=Lato|Great+Vibes' rel='stylesheet' type='text/css'>"
+	    		+ "</head>");
+			
+			resp.getWriter().println("<body>");
+			
+			User curUser=userService.getCurrentUser();	
+			Key userKey=KeyFactory.createKey("User", curUser.getUserId());
+			
+			Entity user=new Entity("User",curUser.getUserId());
+			datastore.put(user);
+			syncCache.put(curUser.getUserId(), user);
+			
+			List<Entity> results;
+			
+			if(tag!=null)
+			{
+				Query tagQuery =new Query(tag);
+				results = datastore.prepare(tagQuery)
+	                    .asList(FetchOptions.Builder.withDefaults());
+			}
+			else
+			{
+			Query photoQuery = new Query("Photo")
+                    .setAncestor(userKey);
+			
+			results = datastore.prepare(photoQuery)
+                    .asList(FetchOptions.Builder.withDefaults());
+			}
+
+			resp.getWriter().println("<form action=\"/user\" method=\"post\">"
+					+ "<input type=\"text\" name=\"tag\">"
+					+"<input type=\"submit\" value=\"Search a tag!\">"
+					+ "</form>");				
+						
+			resp.getWriter().println("<span class=\"class1\">"
+					+"<a href=\"/upload.jsp\">Upload a photo?</a>"
+					+"</span>");
+			
+			resp.getWriter().println("<h1>Hello!"+userService.getCurrentUser().getNickname()+"</h1>");
+			
+			if(results.isEmpty())
+			{
+				if(tag==null) resp.getWriter().println("<h1>You have yet added any photos</h1>");
+				else resp.getWriter().println("<h1>No such photos</h1>");
+			}
+			else
+			{
+				if(tag!=null) resp.getWriter().println("<h1>"+tag+"</h1>");
+				else resp.getWriter().println("<h1>Here is your photo gallery!</h1>");
+
+				for(Entity result: results)
+				{	
+					String imgURL=(String) result.getProperty("imageURL");
+					Key imgKey=result.getKey();
+					String keyString=KeyFactory.keyToString(imgKey);
+
+					String deleteLink="/delete?img-key="+keyString;
+					String imageLink="/image?img-key="+keyString;
+					
+					resp.getWriter().println( "<div class=\"grid-element\">"
+							+"<a href=\""
+							+ imageLink
+							+"\">"
+							+ "<img src="
+							+ imgURL
+							+ ">"
+							+"</a>"
+							+"<span class=\"class2\">"
+							+"<a href=\""
+							+ deleteLink
+							+ "\">Delete</a>"
+							+"</span>"
+							+"</div>");
+					
+				}
+			}
+			
+			resp.getWriter().println("</body></html>");
+			
+		}
+	}
+	
+	public void doPost(HttpServletRequest req,HttpServletResponse resp) throws IOException
+	{
+		syncCache.setErrorHandler(ErrorHandlers.getConsistentLogAndContinue(Level.INFO));
+
+		if(userService.getCurrentUser()==null)
+		{
+			resp.sendRedirect("/login");
+		}
+		else	
+		{
+			String tag=req.getParameter("tag");
+			
+			resp.setContentType("text/html");
+			resp.getWriter().println("<html>");
+			resp.getWriter().println("<style>");
+			resp.getWriter().println("img {"
+					+ "width:200px;"
+					+ "height:128px;"
+					+ "}"
+					+ ".clear {"
+					+ "clear:both;"
+					+ "}"
+					
+					+ "#grid {"
+					+ "width: 620px;"
+					+ "margin: 40px 130px;"
+					+ "}"
+					
+					+ ".grid-element {"
+					+ "float:left;"
+					+ "padding: 2px;"
+					+  "position:relative;"
+					+ "}"
+
+					+ ".class2 a {"
+					+ "position: absolute;"
+					+ "padding: 3px 6px;"
+					+ "top: 2px;"
+					+ "right: 2px;"
+					+ "z-index: 100;"
+					+ "}"
+					
+					+ "aside {"
+					+ "position: relative;"
+					+ "left: 120px;"
+					+ "top: 100px;"
+					+ "}"
+					
+					+ "footer, h1, h2 {"
+					+ "text-align: center;"
+					+ "}"
+					
+					+ "h1 {"
+					+ "font-family: 'Great Vibes', cursive;"
+					+ "font-size: 60px;"
+					+ "margin: 6px;"
+					+ "}"
+					
+					+ "body {"
+					+ "font-family: 'Lato', sans-serif;"
+					+ "background-color: #B1F2FF;"
+					+ "}"
+					
+					+ "footer {"
+					+ "padding: 10px;"
+					+ "}"
+					
+					+ "div, aside, article {"
+					+ "border: 1px solid red;"
+					+ "}"
+					
+					+".class1 a:link, .class1 a:visited {"
+					+ "background-color: #f44336;"
+					+ "color: white;"
+					+ "padding: 14px 25px;"
+					+ "text-align: center; "
+					+ "text-decoration: none;"
+					+ "display: inline-block;"
+					+ "}"
+					
+					+ ".class1 a:hover, .class1 a:active {"
+					+ "background-color: red;"
+					+ "}"
+					);
+			
+			resp.getWriter().println("</style>");
+			
+			resp.getWriter().println("<head>"
+	    		+ "<meta charset=\"UTF-8\">"
+	    		+ "<title>Photo Gallery Project</title>"
+	    		+ "<link rel=\"stylesheet\" type=\"text/css\" href=\"style.css\">"
+	    		+ "<link href='http://fonts.googleapis.com/css?family=Lato|Great+Vibes' rel='stylesheet' type='text/css'>"
+	    		+ "</head>");
+			
+			resp.getWriter().println("<body>");
+			
+			User curUser=userService.getCurrentUser();	
+			Key userKey=KeyFactory.createKey("User", curUser.getUserId());
+			
+			Entity user=new Entity("User",curUser.getUserId());
+			datastore.put(user);
+			syncCache.put(curUser.getUserId(), user);
+			
+			List<Entity> results = null;
+			
+			if(tag!=null)
+			{
+				Query tagQuery =new Query(tag);
+				results = datastore.prepare(tagQuery)
+	                    .asList(FetchOptions.Builder.withDefaults());
+			}
+			else
+			{
+				resp.sendRedirect("/user");
+			}
+
+			resp.getWriter().println("<form action=\"/user\" method=\"post\">"
+					+ "<input type=\"text\" name=\"tag\">"
+					+"<input type=\"submit\" value=\"Search a tag!\">"
+					+ "</form>");				
+						
+			resp.getWriter().println("<span class=\"class1\">"
+					+"<a href=\"/upload.jsp\">Upload a photo?</a>"
+					+"</span>");
+			
+			if(results.isEmpty())
+			{
+				resp.getWriter().println("<h1>No such photos</h1>");
+			}
+			else
+			{
+				if(tag!=null) resp.getWriter().println("<h1>"+tag+"</h1>");
+
+				for(Entity result: results)
+				{	
+					String keyString=(String) result.getProperty("image");
+					Key imgKey=KeyFactory.stringToKey(keyString);
+					
+					Entity ent;
+					
+					if(syncCache.get(imgKey.getName())!=null)
+					{
+						ent=(Entity) syncCache.get(imgKey.getName());
+					}
+					else
+					{
+					
+					Filter keyFilter = new FilterPredicate(Entity.KEY_RESERVED_PROPERTY, FilterOperator.EQUAL, imgKey);
+			        Query keyBasedQuery = new Query("Photo").setFilter(keyFilter);
+			        List<Entity> imgResults = datastore.prepare(keyBasedQuery).asList(FetchOptions.Builder.withDefaults());
+					
+			        if(imgResults.isEmpty()) {resp.getWriter().println("Nothing found!");return;}
+			        else {ent=imgResults.get(0);syncCache.put(imgKey.getName(), ent);}
+					}
+					
+					String imgURL=(String) ent.getProperty("imageURL");
+
+					String deleteLink="/delete?img-key="+keyString;
+					String imageLink="/image?img-key="+keyString;
+					
+					resp.getWriter().println( "<div class=\"grid-element\">"
+							+"<a href=\""
+							+ imageLink
+							+"\">"
+							+ "<img src="
+							+ imgURL
+							+ ">"
+							+"</a>"
+							+"<span class=\"class2\">"
+							+"<a href=\""
+							+ deleteLink
+							+ "\">Delete</a>"
+							+"</span>"
+							+"</div>");
+					
+				}
+			}
+			
+			resp.getWriter().println("</body></html>");
+			
+		}
+	}
+
+}

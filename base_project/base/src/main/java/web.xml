@@ -43,7 +43,18 @@
   <url-pattern>/rest/*</url-pattern>
  </servlet-mapping>
  -->
- 
+
+
+<servlet>
+    <servlet-name>Update</servlet-name>
+    <servlet-class>cs263w16.UpdateServlet</servlet-class>
+  </servlet>
+
+<servlet>
+    <servlet-name>User</servlet-name>
+    <servlet-class>cs263w16.UserServlet</servlet-class>
+  </servlet>
+  
 <servlet>
     <servlet-name>Upload</servlet-name>
     <servlet-class>cs263w16.UploadServlet</servlet-class>
@@ -58,6 +69,16 @@
     <servlet-name>Login</servlet-name>
     <servlet-class>cs263w16.LoginServlet</servlet-class>
   </servlet>
+
+    <servlet-mapping>
+    <servlet-name>Update</servlet-name>
+    <url-pattern>/update</url-pattern>
+  </servlet-mapping>
+
+  <servlet-mapping>
+    <servlet-name>User</servlet-name>
+    <url-pattern>/user</url-pattern>
+  </servlet-mapping> 
  
   <servlet-mapping>
     <servlet-name>Upload</servlet-name>

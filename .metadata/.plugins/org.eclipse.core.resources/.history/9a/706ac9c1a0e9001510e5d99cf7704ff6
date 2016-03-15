@@ -1,0 +1,134 @@
+package cs263w16;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.net.URL;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.logging.Level;
+
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import com.google.appengine.tools.cloudstorage.GcsFileOptions;
+//import com.google.appengine.tools.cloudstorage.GcsFilename;
+//import com.google.appengine.tools.cloudstorage.GcsInputChannel;
+//import com.google.appengine.tools.cloudstorage.GcsOutputChannel;
+//import com.google.appengine.tools.cloudstorage.GcsService;
+//import com.google.appengine.tools.cloudstorage.GcsServiceFactory;
+//import com.google.appengine.tools.cloudstorage.RetryParams;
+//import com.google.appengine.tools.development.testing.LocalBlobstoreServiceTestConfig;
+//import com.google.appengine.tools.development.testing.LocalDatastoreServiceTestConfig;
+//import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
+
+import com.google.appengine.api.blobstore.BlobInfoFactory;
+import com.google.appengine.api.blobstore.BlobKey;
+import com.google.appengine.api.blobstore.BlobstoreService;
+import com.google.appengine.api.blobstore.BlobstoreServiceFactory;
+import com.google.appengine.api.datastore.Blob;
+import com.google.appengine.api.datastore.DatastoreService;
+import com.google.appengine.api.datastore.DatastoreServiceFactory;
+import com.google.appengine.api.datastore.Entity;
+import com.google.appengine.api.datastore.Key;
+import com.google.appengine.api.datastore.KeyFactory;
+
+import com.google.appengine.api.images.Image;
+import com.google.appengine.api.images.ImagesService;
+import com.google.appengine.api.images.ImagesServiceFactory;
+import com.google.appengine.api.images.Transform;
+import com.google.appengine.api.memcache.ErrorHandlers;
+import com.google.appengine.api.memcache.MemcacheService;
+import com.google.appengine.api.memcache.MemcacheServiceFactory;
+
+import com.google.appengine.api.users.User;
+import com.google.appengine.api.users.UserService;
+import com.google.appengine.api.users.UserServiceFactory;
+
+
+@SuppressWarnings("serial")
+public class UpdateServlet extends HttpServlet{
+	
+	private UserService userService=UserServiceFactory.getUserService();
+	private DatastoreService datastore=DatastoreServiceFactory.getDatastoreService();
+	private MemcacheService syncCache=MemcacheServiceFactory.getMemcacheService();
+	private BlobstoreService blobstoreService=BlobstoreServiceFactory.getBlobstoreService();
+	private ImagesService imagesService=ImagesServiceFactory.getImagesService();
+	
+	public void doPost(HttpServletRequest req,HttpServletResponse resp) throws IOException
+	{
+		syncCache.setErrorHandler(ErrorHandlers.getConsistentLogAndContinue(Level.INFO));
+		
+		if(userService.getCurrentUser()==null)
+		{
+			resp.sendRedirect("/login");
+		}
+		else
+		{
+			User curUser=userService.getCurrentUser();	
+			Key userKey=KeyFactory.createKey("User", curUser.getUserId());
+			
+			Entity user=new Entity("User",curUser.getUserId());
+			datastore.put(user);
+			syncCache.put(curUser.getUserId(), user);
+			
+			
+	        Map<String, List<BlobKey>> blobs = blobstoreService.getUploads(req);
+	        List<BlobKey> blobKeys = blobs.get("myFile");
+	        
+	        if (blobKeys == null || blobKeys.isEmpty()) {
+	            resp.sendRedirect("/");
+	        }
+	        else
+	        {
+	        	
+	            Image myImage = ImagesServiceFactory.makeImageFromBlob(blobKeys.get(0));
+	            
+	            Transform resize=ImagesServiceFactory.makeResize(640, 360);
+	            Image newImage=imagesService.applyTransform(resize, myImage);
+	            
+	            byte[] newImageData = newImage.getImageData();
+	            
+	            
+	            //sendToBlobStore(id, cmd, imageBytes);
+	            
+	            
+//	            String photoURL="/serve?blob-key=" + newImage.getBlobKey().toString();
+//	        	
+//	            Entity photo = new Entity("Photo", userKey);
+//	        	
+//	            photo.setProperty("imageURL",photoURL);
+//	        	photo.setProperty("Date", new Date());
+//	            photo.setProperty("imgWidth", newImage.getWidth());
+//	            photo.setProperty("imgHeight", newImage.getHeight());          
+//	            photo.setProperty("blobKey", newImage.getBlobKey().toString());
+//	            
+//	        	datastore.put(photo);
+	        }
+//	        
+//	        //resp.sendRedirect("/user");
+		}
+	}
+	
+//	private BlobKey saveToBlobstore(String contentType, String imageName, byte[] imageData) throws IOException {
+//	    // Get a file service
+//	    GcsService gcsService =GCS;
+//
+//	    // Create a new Blob file and set the name to contain ref to UserImage
+//	    AppEngineFile file = fileService.createNewBlobFile(contentType, imageName);
+//
+//	    // Open a channel to write to it
+//	    FileWriteChannel writeChannel = fileService.openWriteChannel(file, true);
+//
+//	    writeChannel.write(ByteBuffer.wrap(imageData));
+//	    writeChannel.closeFinally();
+//
+//	    // return the BlobKey
+//	    return fileService.getBlobKey(file);
+//	
+	//	}
+
+}
