@@ -1,3 +1,5 @@
+cs263w16\TaskDataResource.class
+cs263w16\DatastoreResource.class
 cs263w16\Worker.class
 cs263w16\DeleteServlet.class
 cs263w16\LoginServlet.class
@@ -8,5 +10,6 @@ cs263w16\DatastoreServlet.class
 cs263w16\Photo.class
 cs263w16\User.class
 cs263w16\UpdateServlet.class
+cs263w16\TaskData.class
 cs263w16\ImageShowServlet.class
 cs263w16\DatastoreCheck.class

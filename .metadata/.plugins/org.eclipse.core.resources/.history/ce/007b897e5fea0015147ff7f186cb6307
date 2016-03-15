@@ -143,7 +143,7 @@ public class UserServlet extends HttpServlet{
 			
 			List<Entity> results;
 			
-			if(tag!=null && tag!="")
+			if(tag!=null)
 			{
 				Query tagQuery =new Query(tag);
 				results = datastore.prepare(tagQuery)
@@ -182,10 +182,10 @@ public class UserServlet extends HttpServlet{
 			{
 				if(tag==null) resp.getWriter().println("<h1>You have yet added any photos</h1>");
 				else resp.getWriter().println("<h1>No such photos</h1>");
-			}			
+			}
 			else
 			{
-				if(tag!=null && tag!="") resp.getWriter().println("<h1>"+tag+"</h1>");
+				if(tag!=null) resp.getWriter().println("<h1>"+tag+"</h1>");
 				else resp.getWriter().println("<h1>Here is your photo gallery!</h1>");
 
 				for(Entity result: results)
@@ -232,7 +232,7 @@ public class UserServlet extends HttpServlet{
 		{
 			String tag=req.getParameter("tag");
 			
-			if(tag!=null && tag!="") resp.sendRedirect("/user");
+			if(tag==null) resp.sendRedirect("/user");
 			else
 			{
 			
@@ -329,7 +329,7 @@ public class UserServlet extends HttpServlet{
 			
 			List<Entity> results = null;
 			
-			if(tag!=null && tag!="")
+			if(tag!=null)
 			{
 				Query tagQuery =new Query(tag);
 				results = datastore.prepare(tagQuery)
@@ -359,7 +359,7 @@ public class UserServlet extends HttpServlet{
 			}
 			else
 			{
-				if(tag!=null && tag!="") resp.getWriter().println("<h1>"+tag+"</h1>");
+				if(tag!=null) resp.getWriter().println("<h1>"+tag+"</h1>");
 
 				for(Entity result: results)
 				{	
